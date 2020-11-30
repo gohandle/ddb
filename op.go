@@ -106,7 +106,7 @@ func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Itemizer) *Op {
 		ot.ExpressionAttributeValues = expr.Values()
 		op.scan = &ot
 	default:
-		op.err = fmt.Errorf("unsupported sub-operation: %T", op)
+		op.err = fmt.Errorf("unsupported sub-operation for 'Do': %T", op)
 	}
 
 	return op
@@ -114,9 +114,22 @@ func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Itemizer) *Op {
 
 // Run the DynamoDB operation
 func (op *Op) Run() (r Result, err error) {
-	// @TODO assert that Do was called at least once
-
-	return
+	switch {
+	case op.query != nil: // perform a query
+		return &queryResult{in: op.query}, nil
+	case len(op.writes) == 1: // perform a singleton write
+		fallthrough
+	case op.scan != nil: // perform a scan
+		fallthrough
+	case len(op.reads) == 1: // perform a singleton get
+		fallthrough
+	case len(op.writes) > 1: // perform a write transaction
+		fallthrough
+	case len(op.reads) > 1: // perform a read transaction
+		panic("not implemented")
+	default:
+		return nil, fmt.Errorf("operation cannot be run, must call 'Do' at least once.")
+	}
 }
 
 // mapFilter is a utility method that returns a copy 'n' of 'm' that just holds

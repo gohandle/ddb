@@ -1,10 +1,18 @@
 package ddb
 
 import (
+	"context"
+	"encoding/base64"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	e "github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
@@ -25,8 +33,8 @@ import (
 // }
 
 type testItem1 struct {
-	PK  string `dynamodbav:"pk"`
-	Foo string `dynamodbav:"foo"`
+	PK string `dynamodbav:"pk"`
+	F1 string `dynamodbav:"f1"`
 }
 
 func (it testItem1) Item() Item {
@@ -36,53 +44,6 @@ func (it testItem1) Item() Item {
 func (it testItem1) Keys() (pk, sk string) {
 	return "pk", ""
 }
-
-// type testEntity1 struct {
-// 	ID string
-// }
-
-// func (e *testEntity1) FromItem(it Item) {
-// 	// @TODO implement how an entity is retrieved from a table item
-// }
-
-// func (e testEntity1) Item() Item {
-// 	// @TODO implement how an item is created from an entity
-// 	it := &testItem1{}
-// 	return it
-// }
-
-// func TestOpUsage(t *testing.T) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
-// 	defer cancel()
-
-// 	tbl := testTable("foo")
-
-// 	t.Run("put", func(t *testing.T) {
-// 		ent1 := &testEntity1{"id1"}
-
-// 		if _, err := Exec(ctx, nil).Do(tbl.PutEntity1IfNotExist(ent1)).Run(); err != nil {
-// 			t.Fatalf("got: %v", err)
-// 		}
-
-// 		t.Run("query", func(t *testing.T) {
-// 			r, err := Exec(ctx, nil).Do(tbl.Query1("id1")).Run()
-// 			if err != nil {
-// 				t.Fatalf("got: %v", err)
-// 			}
-
-// 			for r.Next() {
-// 				var ent2 testEntity1
-// 				if err = r.Scan(&ent2); err != nil {
-// 					t.Fatalf("got: %v", err)
-// 				}
-// 			}
-
-// 			if err = r.Err(); err != nil {
-// 				t.Fatalf("got: %v", err)
-// 			}
-// 		})
-// 	})
-// }
 
 func TestOpDo(t *testing.T) {
 	for i, c := range []struct {
@@ -135,4 +96,105 @@ func TestOpKeyMarshal(t *testing.T) {
 	if op.writes[0].Update.Key["foo"] != nil {
 		t.Fatalf("got: %v", op.writes)
 	}
+}
+
+func withLocalDB(tb testing.TB, tbls ...*dynamodb.CreateTableInput) (ddb *dynamodb.DynamoDB) {
+	jexe, err := exec.LookPath("java")
+	if jexe == "" || err != nil {
+		tb.Fatalf("java not available in PATH: %v", err)
+	}
+
+	cmd := exec.Command(jexe,
+		"-D"+filepath.Join("internal", "localddb", "DynamoDBLocal_lib"),
+		"-jar", filepath.Join("internal", "localddb", "DynamoDBLocal.jar"),
+		"-inMemory", "--port", "12000",
+	)
+
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	if err = cmd.Start(); err != nil {
+		tb.Fatalf("failed to start local ddb: %v", err)
+	}
+
+	tb.Cleanup(func() {
+		cmd.Process.Kill()
+	})
+
+	var sess *session.Session
+	if sess, err = session.NewSession(&aws.Config{
+		Region:   aws.String("eu-west-1"),
+		Endpoint: aws.String("http://localhost:12000"),
+	}); err != nil {
+		tb.Fatalf("failed to create local session: %v", err)
+	}
+
+	ddb = dynamodb.New(sess)
+	for _, in := range tbls {
+		if _, err = ddb.CreateTable(in); err != nil {
+			tb.Fatalf("failed to create table %v: %v", in, err)
+		}
+
+	}
+
+	return
+}
+
+type table1 string
+
+func (tbl table1) createInput() *dynamodb.CreateTableInput {
+	return (&dynamodb.CreateTableInput{}).
+		SetTableName(string(tbl)).
+		SetProvisionedThroughput((&dynamodb.ProvisionedThroughput{}).
+			SetReadCapacityUnits(1).
+			SetWriteCapacityUnits(1)).
+		SetAttributeDefinitions(
+			[]*dynamodb.AttributeDefinition{
+				(&dynamodb.AttributeDefinition{}).
+					SetAttributeName("pk").SetAttributeType("S"),
+			}).
+		SetKeySchema(
+			[]*dynamodb.KeySchemaElement{
+				(&dynamodb.KeySchemaElement{}).
+					SetAttributeName("pk").
+					SetKeyType("HASH"),
+			})
+}
+
+type entity1 struct {
+	Name string
+}
+
+func (e *entity1) Item() Item {
+	return &testItem1{
+		PK: base64.URLEncoding.EncodeToString([]byte(e.Name)),
+		F1: e.Name,
+	}
+}
+
+func (tbl table1) itemPut1(e *entity1) (eb e.Builder, p dynamodb.Put, it Itemizer) {
+	p.SetTableName(string(tbl))
+	it = e
+	return
+}
+
+func TestPutEnd2End(t *testing.T) {
+	tbl1 := table1(t.Name())
+	ddb := withLocalDB(t, tbl1.createInput())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	t.Run("put", func(t *testing.T) {
+		for i := 0; i < 10; i++ {
+			e := &entity1{"entity_" + strconv.Itoa(i)}
+			if _, err := Exec(ctx, ddb).Do(tbl1.itemPut1(e)).Run(); err != nil {
+				t.Fatalf("got: %v", err)
+			}
+		}
+
+		// @TODO query
+
+		// @TODO update (with return old item)
+	})
+
 }
