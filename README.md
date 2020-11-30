@@ -7,3 +7,4 @@ Helper types for writing expression DynamoDB code
 - [ ] COULD  add an option that always runs singleton operations in a transaction alsop
 - [ ] COULD  add option for consisten read
 - [ ] COULD  add option for ReturnConsumedCapacity
+- [ ] COULD  make Do return an TXDB-like interface for composability of operations

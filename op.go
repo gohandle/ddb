@@ -2,7 +2,9 @@ package ddb
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -28,27 +30,37 @@ func Exec(ctx context.Context, ddb Dynamo) *Op {
 }
 
 // Do is a flexible method for adding a sub-operation to the operation.
-func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Item) *Op {
+func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Itemizer) *Op {
 	if len(ik) > 1 {
 		panic("ddb: may take at most one item(key) argument")
 	}
 
+	if op.err != nil {
+		return op // ignore anythig else after an error
+	}
+
 	expr, err := eb.Build()
-	if err != nil {
-		op.err = fmt.Errorf("failed to build expression: %w", err)
+	var uperr expression.UnsetParameterError
+	if errors.As(err, &uperr) && strings.Contains(uperr.Error(), "Builder") {
+		// a zero builder as an argument is fine, so we don't report this
+		// error to the user.
+	} else if err != nil {
+		op.err = fmt.Errorf("failed to build expression: %T", err)
 		return op
 	}
 
 	var itkey map[string]*dynamodb.AttributeValue
 	var pk, sk string
 	if len(ik) > 0 {
-		pk, sk = ik[0].Keys()
-		itkey, err = dynamodbattribute.MarshalMap(ik[0])
+		item := ik[0].Item()
+		pk, sk = item.Keys()
+		itkey, err = dynamodbattribute.MarshalMap(item)
 		if err != nil {
 			op.err = fmt.Errorf("failed to marshal item(key): %w", err)
 		}
 	}
 
+	// complete the sub operation and add it
 	switch ot := o.(type) {
 	case dynamodb.Delete:
 		ot.Key = mapFilter(itkey, pk, sk)
@@ -94,7 +106,7 @@ func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Item) *Op {
 		ot.ExpressionAttributeValues = expr.Values()
 		op.scan = &ot
 	default:
-		panic("ddb: unsupported sub-operation")
+		op.err = fmt.Errorf("unsupported sub-operation: %T", op)
 	}
 
 	return op
