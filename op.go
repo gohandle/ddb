@@ -118,7 +118,7 @@ func (op *Op) Run() (r Result, err error) {
 	case op.query != nil: // perform a query
 		return &queryResult{in: op.query}, nil
 	case len(op.writes) == 1: // perform a singleton write
-		fallthrough
+		return op.singleWrite(op.writes[0])
 	case op.scan != nil: // perform a scan
 		fallthrough
 	case len(op.reads) == 1: // perform a singleton get
@@ -130,6 +130,74 @@ func (op *Op) Run() (r Result, err error) {
 	default:
 		return nil, fmt.Errorf("operation cannot be run, must call 'Do' at least once.")
 	}
+}
+
+func (op *Op) singleWrite(wi *dynamodb.TransactWriteItem) (r Result, err error) {
+	// @TODO support: ReturnConsumedCapacity, ReturnItemCollectionMetrics, ReturnValues
+	// @TODO add output returnvalues to a result
+
+	// any of the single ops may return the attributes that were present before
+	// the operation was executed. We can present that in a result
+	var returns map[string]*dynamodb.AttributeValue
+
+	switch {
+	case wi.Update != nil:
+		var out *dynamodb.UpdateItemOutput
+		if out, err = op.ddb.UpdateItemWithContext(op.ctx, &dynamodb.UpdateItemInput{
+			TableName:                 wi.Update.TableName,
+			UpdateExpression:          wi.Update.UpdateExpression,
+			ConditionExpression:       wi.Update.ConditionExpression,
+			ExpressionAttributeNames:  wi.Update.ExpressionAttributeNames,
+			ExpressionAttributeValues: wi.Update.ExpressionAttributeValues,
+			Key:                       wi.Update.Key,
+		}); err != nil {
+			return
+		}
+
+		if out.Attributes != nil {
+			returns = out.Attributes
+		}
+	case wi.Delete != nil:
+		var out *dynamodb.DeleteItemOutput
+		if out, err = op.ddb.DeleteItemWithContext(op.ctx, &dynamodb.DeleteItemInput{
+			TableName:                 wi.Delete.TableName,
+			ConditionExpression:       wi.Delete.ConditionExpression,
+			ExpressionAttributeNames:  wi.Delete.ExpressionAttributeNames,
+			ExpressionAttributeValues: wi.Delete.ExpressionAttributeValues,
+			Key:                       wi.Delete.Key,
+		}); err != nil {
+			return
+		}
+
+		if out.Attributes != nil {
+			returns = out.Attributes
+		}
+	case wi.Put != nil:
+		var out *dynamodb.PutItemOutput
+		if out, err = op.ddb.PutItemWithContext(op.ctx, &dynamodb.PutItemInput{
+			TableName:                 wi.Put.TableName,
+			ConditionExpression:       wi.Put.ConditionExpression,
+			ExpressionAttributeNames:  wi.Put.ExpressionAttributeNames,
+			ExpressionAttributeValues: wi.Put.ExpressionAttributeValues,
+			Item:                      wi.Put.Item,
+		}); err != nil {
+			return
+		}
+
+		if out.Attributes != nil {
+			returns = out.Attributes
+		}
+	default:
+		return nil, fmt.Errorf("unsupported sub-write, must be Put, Delete or Update, got: %T", wi)
+	}
+
+	// @TODO add singleton result
+	_ = returns
+	// if returns != nil {
+	// 	r.items = append(r.items, returns)
+	// }
+
+	return
 }
 
 // mapFilter is a utility method that returns a copy 'n' of 'm' that just holds
