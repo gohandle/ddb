@@ -9,34 +9,34 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-// Query holds a DynamoDB query
-type Query struct {
+// Querier holds a DynamoDB query
+type Querier struct {
 	res *queryResult
 	eb  expression.Builder
 }
 
-// NewQuery sets up a query that can be run to fetch
-func NewQuery(in dynamodb.QueryInput, b expression.Builder) (q *Query) {
-	q = new(Query)
-	q.res = &queryResult{}
+// Query sets up a query that can be run to fetch
+func Query(b expression.Builder, in dynamodb.QueryInput) (q *Querier) {
+	q = new(Querier)
+	q.res = &queryResult{pos: -1}
 	q.res.in = &in
 	q.eb = b
 	return
 }
 
 // Run will return a Query result for iteration
-func (q *Query) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
-	expr, err := q.eb.Build()
+func (q *Querier) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
+	expr, err := exprBuild(q.eb)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build expression(s): %w", err)
 	}
-
+	q.res.ddb = ddb
+	q.res.ctx = ctx
 	q.res.in.FilterExpression = expr.Filter()
 	q.res.in.KeyConditionExpression = expr.KeyCondition()
 	q.res.in.ProjectionExpression = expr.Projection()
 	q.res.in.ExpressionAttributeNames = expr.Names()
 	q.res.in.ExpressionAttributeValues = expr.Values()
-
 	return q.res, nil
 }
 

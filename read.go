@@ -22,8 +22,9 @@ func Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read {
 
 // Get adds a get item to the read
 func (r *Read) Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read {
-	expr, ok, k := expression.Expression{}, false, key.Item()
-	if expr, get.Key, ok = r.prepArgs(eb, k); !ok {
+	var k Item
+	expr, ok := expression.Expression{}, false
+	if expr, get.Key, k, ok = r.prepArgs(eb, key); !ok {
 		return r
 	}
 
@@ -67,9 +68,19 @@ func (r *Read) Run(ctx context.Context, ddb Dynamo) (res Result, err error) {
 // prepArgs will do checks for what is provided for a write operation
 func (r *Read) prepArgs(
 	eb expression.Builder,
-	ik Item,
-) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ok bool) {
+	ikz Itemizer,
+) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ik Item, ok bool) {
 	if r.err != nil {
+		return
+	}
+
+	if ikz == nil {
+		r.err = fmt.Errorf("Itemizer is nil")
+		return
+	}
+
+	if ik = ikz.Item(); ik == nil {
+		r.err = fmt.Errorf("Item from Itemizer is nil")
 		return
 	}
 
@@ -85,5 +96,5 @@ func (r *Read) prepArgs(
 		return
 	}
 
-	return expr, av, true
+	return expr, av, ik, true
 }

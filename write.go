@@ -45,7 +45,7 @@ func Check(eb expression.Builder, o dynamodb.ConditionCheck, key Itemizer) *Writ
 // Put will add a put operation to the write
 func (tx *Write) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Write {
 	expr, ok := expression.Expression{}, false
-	if expr, put.Item, ok = tx.prepArgs(eb, item.Item()); !ok {
+	if expr, put.Item, _, ok = tx.prepArgs(eb, item); !ok {
 		return tx
 	}
 
@@ -58,8 +58,9 @@ func (tx *Write) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Wr
 
 // Update will add a update operation to the write
 func (tx *Write) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer) *Write {
-	expr, ok, k := expression.Expression{}, false, key.Item()
-	if expr, upd.Key, ok = tx.prepArgs(eb, k); !ok {
+	var k Item
+	expr, ok := expression.Expression{}, false
+	if expr, upd.Key, k, ok = tx.prepArgs(eb, key); !ok {
 		return tx
 	}
 
@@ -75,8 +76,9 @@ func (tx *Write) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer
 
 // Update delete will add a Delete operation to the write
 func (tx *Write) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer) *Write {
-	expr, ok, k := expression.Expression{}, false, key.Item()
-	if expr, del.Key, ok = tx.prepArgs(eb, k); !ok {
+	var k Item
+	expr, ok := expression.Expression{}, false
+	if expr, del.Key, k, ok = tx.prepArgs(eb, key); !ok {
 		return tx
 	}
 
@@ -91,8 +93,9 @@ func (tx *Write) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer
 
 // Check will add a check operation to the write
 func (tx *Write) Check(eb expression.Builder, chk dynamodb.ConditionCheck, key Itemizer) *Write {
-	expr, ok, k := expression.Expression{}, false, key.Item()
-	if expr, chk.Key, ok = tx.prepArgs(eb, k); !ok {
+	var k Item
+	expr, ok := expression.Expression{}, false
+	if expr, chk.Key, k, ok = tx.prepArgs(eb, key); !ok {
 		return tx
 	}
 
@@ -140,9 +143,19 @@ func (c emptyResult) Scan(v interface {
 // prepArgs will do checks for what is provided for a write operation
 func (tx *Write) prepArgs(
 	eb expression.Builder,
-	ik Item,
-) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ok bool) {
+	ikz Itemizer,
+) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ik Item, ok bool) {
 	if tx.err != nil {
+		return
+	}
+
+	if ikz == nil {
+		tx.err = fmt.Errorf("itemizer is nil")
+		return
+	}
+
+	if ik = ikz.Item(); ik == nil {
+		tx.err = fmt.Errorf("Item returned from Itemizer is nil")
 		return
 	}
 
@@ -158,7 +171,7 @@ func (tx *Write) prepArgs(
 		return
 	}
 
-	return expr, av, true
+	return expr, av, ik, true
 }
 
 // exprBuild builds the expression but ignores empty Builder error
@@ -173,4 +186,25 @@ func exprBuild(eb expression.Builder) (expr expression.Expression, err error) {
 	}
 
 	return expr, nil
+}
+
+// mapFilter is a utility method that returns a copy 'n' of 'm' that just holds
+// the provided named element.
+func mapFilter(
+	m map[string]*dynamodb.AttributeValue,
+	names ...string,
+) (n map[string]*dynamodb.AttributeValue) {
+	n = make(map[string]*dynamodb.AttributeValue)
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+
+		if _, ok := m[name]; !ok {
+			continue
+		}
+
+		n[name] = m[name]
+	}
+	return
 }

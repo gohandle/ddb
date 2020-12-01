@@ -12,15 +12,17 @@ func writeSingle(ctx context.Context, ddb Dynamo, wi *dynamodb.TransactWriteItem
 
 	switch {
 	case wi.Put != nil:
-		var out *dynamodb.PutItemOutput
-		if out, err = ddb.PutItemWithContext(ctx, &dynamodb.PutItemInput{
+		in := &dynamodb.PutItemInput{
 			TableName:                 wi.Put.TableName,
 			Item:                      wi.Put.Item,
 			ConditionExpression:       wi.Put.ConditionExpression,
 			ExpressionAttributeNames:  wi.Put.ExpressionAttributeNames,
 			ExpressionAttributeValues: wi.Put.ExpressionAttributeValues,
-		}); err != nil {
-			return nil, fmt.Errorf("failed to put item: %w", err)
+		}
+
+		var out *dynamodb.PutItemOutput
+		if out, err = ddb.PutItemWithContext(ctx, in); err != nil {
+			return nil, fmt.Errorf("failed to put item %v: %w", in, err)
 		}
 
 		attr = out.Attributes

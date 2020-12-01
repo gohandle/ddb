@@ -11,6 +11,7 @@ Helper types for writing expression DynamoDB code
 - [ ] COULD  turn a set of Put, and Deletes into a BatchWriteRequest as well
 - [ ] COULD  turn a set Get requests into a BatchGetItem request 
 - [ ] SHOULD support 	"ReturnValues" while wi.Put/Delete/Update doesn't support it
+- [ ] COULD create error types that show the dynamodb input for debugging
 
 ## notes
 - A Query, Scan, Put, Get, Delete, Update and ConditionCheck only variables in an operations are:
