@@ -52,9 +52,16 @@ func (r *Read) Run(ctx context.Context, ddb Dynamo) (res Result, err error) {
 		return nil, fmt.Errorf("failed to transact: %w", err)
 	}
 
-	_ = out
+	if len(out.Responses) < 0 {
+		return emptyResult{}, nil
+	}
 
-	return
+	var items []map[string]*dynamodb.AttributeValue
+	for _, resp := range out.Responses {
+		items = append(items, resp.Item)
+	}
+
+	return newResult(items...), nil
 }
 
 // prepArgs will do checks for what is provided for a write operation
