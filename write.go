@@ -114,7 +114,8 @@ func (tx *Write) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 		return nil, tx.err
 	}
 
-	if len(tx.writes) == 1 {
+	// if only one write, and it is not a condition check downgrade to non-transaction
+	if len(tx.writes) == 1 && tx.writes[0].ConditionCheck == nil {
 		return writeSingle(ctx, ddb, tx.writes[0])
 	}
 

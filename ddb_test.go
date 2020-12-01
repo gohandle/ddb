@@ -311,6 +311,16 @@ func (tbl table2) Put1(e *table2Entity) (b e.Builder, op dynamodb.Put, it Itemiz
 	return b, op, e
 }
 
+func (tbl table2) Chc1(id int, isKind int) (b e.Builder, op dynamodb.ConditionCheck, it Itemizer) {
+	ent := &table2Entity{ID: id, Kind: isKind}
+	item := ent.Item().(*table2Item)
+
+	op.SetTableName(string(tbl))
+	return b.WithCondition(
+		e.Name("kind").Equal(e.Value(item.Kind)),
+	), op, ent
+}
+
 type table2Item struct {
 	PK   string `dynamodbav:"pk"`
 	SK   string `dynamodbav:"sk"`
@@ -390,6 +400,16 @@ func TestTable2End2End(t *testing.T) {
 			}
 		})
 
+		t.Run("changed kind if check", func(t *testing.T) {
+			if _, err := Check(tbl.Chc1(5, 1)).Run(ctx, ddb); err != nil {
+				t.Fatalf("got: %v", err)
+			}
+
+			if _, err := Check(tbl.Chc1(1, 1)).Run(ctx, ddb); err == nil {
+				t.Fatalf("should error, got: %v", err)
+			}
+		})
+
 		t.Run("query by kind", func(t *testing.T) {
 			r, err := Query(tbl.ByKind(1)).Run(ctx, ddb)
 			if err != nil {
@@ -414,6 +434,5 @@ func TestTable2End2End(t *testing.T) {
 				t.Fatalf("got: %v", err)
 			}
 		})
-
 	})
 }

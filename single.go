@@ -53,6 +53,8 @@ func writeSingle(ctx context.Context, ddb Dynamo, wi *dynamodb.TransactWriteItem
 		}
 
 		attr = out.Attributes
+	default:
+		return nil, fmt.Errorf("unsupported single operation: %v", wi)
 	}
 
 	if attr == nil {
