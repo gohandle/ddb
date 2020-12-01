@@ -52,6 +52,7 @@ func (tx *Write) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Wr
 	put.ConditionExpression = expr.Condition()
 	put.ExpressionAttributeNames = expr.Names()
 	put.ExpressionAttributeValues = expr.Values()
+	tx.writes = append(tx.writes, &dynamodb.TransactWriteItem{Put: &put})
 	return tx
 }
 
@@ -68,6 +69,7 @@ func (tx *Write) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer
 	upd.UpdateExpression = expr.Update()
 	upd.ExpressionAttributeNames = expr.Names()
 	upd.ExpressionAttributeValues = expr.Values()
+	tx.writes = append(tx.writes, &dynamodb.TransactWriteItem{Update: &upd})
 	return tx
 }
 
@@ -83,6 +85,7 @@ func (tx *Write) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer
 	del.ConditionExpression = expr.Condition()
 	del.ExpressionAttributeNames = expr.Names()
 	del.ExpressionAttributeValues = expr.Values()
+	tx.writes = append(tx.writes, &dynamodb.TransactWriteItem{Delete: &del})
 	return tx
 }
 
@@ -98,16 +101,22 @@ func (tx *Write) Check(eb expression.Builder, chk dynamodb.ConditionCheck, key I
 	chk.ConditionExpression = expr.Condition()
 	chk.ExpressionAttributeNames = expr.Names()
 	chk.ExpressionAttributeValues = expr.Values()
+	tx.writes = append(tx.writes, &dynamodb.TransactWriteItem{ConditionCheck: &chk})
 	return tx
 }
 
 // Run the write
 func (tx *Write) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
+	if tx.err != nil {
+		return nil, tx.err
+	}
+
 	if len(tx.writes) == 1 {
 		return writeSingle(ctx, ddb, tx.writes[0])
 	}
 
 	if _, err = ddb.TransactWriteItemsWithContext(ctx, &dynamodb.TransactWriteItemsInput{
+		// @TODO generate and set ClientRequestToken
 		TransactItems: tx.writes,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to transact: %w", err)
