@@ -400,7 +400,7 @@ func TestTable2End2End(t *testing.T) {
 			}
 		})
 
-		t.Run("changed kind if check", func(t *testing.T) {
+		t.Run("perform checks in transaction", func(t *testing.T) {
 			if _, err := Check(tbl.Chc1(5, 1)).Run(ctx, ddb); err != nil {
 				t.Fatalf("got: %v", err)
 			}
