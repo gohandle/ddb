@@ -15,6 +15,10 @@ func newResult(its ...map[string]*dynamodb.AttributeValue) *result {
 	return &result{its, -1}
 }
 
+func (c *result) Len() int64 {
+	return int64(len(c.items))
+}
+
 func (c *result) Err() error {
 	return nil
 }
@@ -43,6 +47,7 @@ func (c *result) Scan(v interface {
 // emptyResult is a result without items
 type emptyResult struct{}
 
+func (c emptyResult) Len() int64 { return 0 }
 func (c emptyResult) Err() error { return nil }
 func (c emptyResult) Next() bool { return false }
 func (c emptyResult) Scan(v interface {

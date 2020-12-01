@@ -56,6 +56,13 @@ func (c *queryResult) Err() error {
 	return c.err
 }
 
+func (c *queryResult) Len() int64 {
+	if c.out == nil || c.out.Count == nil {
+		return -1
+	}
+	return *c.out.Count
+}
+
 func (c *queryResult) Next() bool {
 
 	// we got some query output, start with pos iteration

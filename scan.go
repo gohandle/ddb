@@ -52,6 +52,13 @@ type scanResult struct {
 	pos int
 }
 
+func (c *scanResult) Len() int64 {
+	if c.out == nil || c.out.Count == nil {
+		return -1
+	}
+	return *c.out.Count
+}
+
 func (c *scanResult) Err() error {
 	return c.err
 }

@@ -23,6 +23,7 @@ type Deitemizer interface {
 
 type Result interface {
 	Err() error
+	Len() int64
 	Next() bool
 	Scan(v interface {
 		Itemizer
