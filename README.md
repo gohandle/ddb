@@ -8,3 +8,13 @@ Helper types for writing expression DynamoDB code
 - [ ] COULD  add option for consisten read
 - [ ] COULD  add option for ReturnConsumedCapacity
 - [ ] COULD  make Do return an TXDB-like interface for composability of operations
+- [ ] COULD  turn a set of Put, and Deletes into a BatchWriteRequest as well
+- [ ] COULD  turn a set Get requests into a BatchGetItem request 
+
+## notes
+- A Query, Scan, Put, Get, Delete, Update and ConditionCheck only variables in an operations are:
+  - The dynamodb.QueryInput, dynamodb.Put...
+  - The expression.Builder 
+  - The Item/Key
+- There is "QueryPages" already
+- There is "ScanPages" already
