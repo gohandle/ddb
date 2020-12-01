@@ -33,6 +33,7 @@ func (tbl table1) createInput() *dynamodb.CreateTableInput {
 
 type table1Item struct {
 	PK string `dynamodbav:"pk"`
+	F1 string `dynamodbav:"f1"`
 }
 
 func (table1Item) Keys() (pk, sk string) {
@@ -40,15 +41,32 @@ func (table1Item) Keys() (pk, sk string) {
 }
 
 type table1Entity struct {
-	ID int
+	ID   int
+	Name string
 }
 
 func (e *table1Entity) FromItem(it Item) {
 	e.ID, _ = strconv.Atoi(it.(*table1Item).PK[1:])
+	e.Name = it.(*table1Item).F1
 }
 
 func (e table1Entity) Item() Item {
-	return &table1Item{PK: "e" + strconv.Itoa(e.ID)}
+	return &table1Item{
+		PK: "e" + strconv.Itoa(e.ID),
+		F1: e.Name,
+	}
+}
+
+func (tbl table1) simpleGet1(id int) (b e.Builder, g dynamodb.Get, k Itemizer) {
+	g.SetTableName(string(tbl))
+	return b, g, &table1Entity{ID: id}
+}
+
+func (tbl table1) simpleUpd1(id int, newName string) (b e.Builder, u dynamodb.Update, k Itemizer) {
+	u.SetTableName(string(tbl))
+	return b.WithUpdate(
+		e.Set(e.Name("f1"), e.Value(newName)),
+	), u, &table1Entity{ID: id}
 }
 
 func (tbl table1) simpleQry1(id int) (b e.Builder, q dynamodb.QueryInput) {
@@ -79,7 +97,7 @@ func TestSinglePutDeleteQuery(t *testing.T) {
 
 	t.Run("put 10", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
-			e := &table1Entity{i}
+			e := &table1Entity{i, "name-" + strconv.Itoa(i)}
 			if _, err := Put(tbl.simplePut1(e)).Run(ctx, ddb); err != nil {
 				t.Fatalf("got: %v", err)
 			}
@@ -92,27 +110,57 @@ func TestSinglePutDeleteQuery(t *testing.T) {
 				}
 			}
 
-			t.Run("query one remaining", func(t *testing.T) {
-				r, err := Query(tbl.simpleQry1(6)).Run(ctx, ddb)
-				if err != nil {
+			t.Run("update nr 6", func(t *testing.T) {
+				if _, err := Update(tbl.simpleUpd1(6, "foo")).Run(ctx, ddb); err != nil {
 					t.Fatalf("got: %v", err)
 				}
 
-				for r.Next() {
-					var e table1Entity
-					if err := r.Scan(&e); err != nil {
+				t.Run("query nr 6", func(t *testing.T) {
+					r, err := Query(tbl.simpleQry1(6)).Run(ctx, ddb)
+					if err != nil {
 						t.Fatalf("got: %v", err)
 					}
 
-					if e.ID != 6 {
-						t.Fatalf("got: %v", e.ID)
-					}
-				}
+					for r.Next() {
+						var e table1Entity
+						if err := r.Scan(&e); err != nil {
+							t.Fatalf("got: %v", err)
+						}
 
-				if err = r.Err(); err != nil {
-					t.Fatalf("got: %v", err)
-				}
+						if e.ID != 6 || e.Name != "foo" {
+							t.Fatalf("got: %v", e)
+						}
+					}
+
+					if err = r.Err(); err != nil {
+						t.Fatalf("got: %v", err)
+					}
+				})
+
+				t.Run("get nr 6", func(t *testing.T) {
+					r, err := Get(tbl.simpleGet1(6)).Run(ctx, ddb)
+					if err != nil {
+						t.Fatalf("got: %v", err)
+					}
+
+					for r.Next() {
+						var e table1Entity
+						if err := r.Scan(&e); err != nil {
+							t.Fatalf("got: %v", err)
+						}
+
+						if e.ID != 6 || e.Name != "foo" {
+							t.Fatalf("got: %v", e)
+						}
+					}
+
+					if err = r.Err(); err != nil {
+						t.Fatalf("got: %v", err)
+					}
+				})
 			})
+
+			// @TODO scan the rest
 		})
 	})
 }
