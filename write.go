@@ -17,29 +17,29 @@ type Write struct {
 	err    error
 }
 
-// newWrite inits a new write
-func newWrite() *Write {
+// NewWrite inits a new write
+func NewWrite() *Write {
 	return &Write{}
 }
 
 // Put will setup a put with the check
 func Put(eb expression.Builder, o dynamodb.Put, item Itemizer) *Write {
-	return newWrite().Put(eb, o, item)
+	return NewWrite().Put(eb, o, item)
 }
 
 // Delete will setup a write with the delete
 func Delete(eb expression.Builder, o dynamodb.Delete, key Itemizer) *Write {
-	return newWrite().Delete(eb, o, key)
+	return NewWrite().Delete(eb, o, key)
 }
 
 // Update will setup a write with the update
 func Update(eb expression.Builder, o dynamodb.Update, key Itemizer) *Write {
-	return newWrite().Update(eb, o, key)
+	return NewWrite().Update(eb, o, key)
 }
 
 // Check will setup a write with the check
 func Check(eb expression.Builder, o dynamodb.ConditionCheck, key Itemizer) *Write {
-	return newWrite().Check(eb, o, key)
+	return NewWrite().Check(eb, o, key)
 }
 
 // Put will add a put operation to the write

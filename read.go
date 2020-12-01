@@ -15,9 +15,12 @@ type Read struct {
 	err   error
 }
 
+// NewRead inits an empty read
+func NewRead() *Read { return &Read{} }
+
 // Get starts a read and adds one get operation
 func Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read {
-	return (&Read{}).Get(eb, get, key)
+	return NewRead().Get(eb, get, key)
 }
 
 // Get adds a get item to the read

@@ -145,7 +145,7 @@ func (tbl table1) simplePut1(e *table1Entity) (b e.Builder, p dynamodb.Put, it I
 	return b, p, e
 }
 
-func TestSimpleEnd2End(t *testing.T) {
+func TestTable1End2End(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -241,5 +241,179 @@ func TestSimpleEnd2End(t *testing.T) {
 				})
 			})
 		})
+	})
+}
+
+// table2 describes a table with a compound key and gsi that reverses that key
+type table2 string
+
+func (tbl table2) createInput() *dynamodb.CreateTableInput {
+	return (&dynamodb.CreateTableInput{}).
+		SetTableName(string(tbl)).
+		SetGlobalSecondaryIndexes(
+			[]*dynamodb.GlobalSecondaryIndex{
+				(&dynamodb.GlobalSecondaryIndex{}).
+					SetIndexName("gsi1").
+					SetProvisionedThroughput((&dynamodb.ProvisionedThroughput{}).
+						SetReadCapacityUnits(1).
+						SetWriteCapacityUnits(1)).
+					SetProjection((&dynamodb.Projection{}).
+						SetProjectionType(dynamodb.ProjectionTypeAll)).
+					SetKeySchema(
+						[]*dynamodb.KeySchemaElement{
+							(&dynamodb.KeySchemaElement{}).
+								SetAttributeName("kind").
+								SetKeyType("HASH"),
+						},
+					),
+			}).
+		SetProvisionedThroughput((&dynamodb.ProvisionedThroughput{}).
+			SetReadCapacityUnits(1).
+			SetWriteCapacityUnits(1)).
+		SetAttributeDefinitions(
+			[]*dynamodb.AttributeDefinition{
+				(&dynamodb.AttributeDefinition{}).
+					SetAttributeName("pk").SetAttributeType("S"),
+				(&dynamodb.AttributeDefinition{}).
+					SetAttributeName("sk").SetAttributeType("S"),
+				(&dynamodb.AttributeDefinition{}).
+					SetAttributeName("kind").SetAttributeType("N"),
+			}).
+		SetKeySchema(
+			[]*dynamodb.KeySchemaElement{
+				(&dynamodb.KeySchemaElement{}).
+					SetAttributeName("pk").
+					SetKeyType("HASH"),
+
+				(&dynamodb.KeySchemaElement{}).
+					SetAttributeName("sk").
+					SetKeyType("RANGE"),
+			})
+}
+
+func (tbl table2) ByKind(kind int64) (b e.Builder, q dynamodb.QueryInput) {
+	q.SetTableName(string(tbl))
+	q.SetIndexName("gsi1")
+	q.SetLimit(2)
+
+	return b.WithKeyCondition(
+		e.Key("kind").Equal(e.Value(kind)),
+	), q
+}
+
+func (tbl table2) Get1(id int) (b e.Builder, op dynamodb.Get, it Itemizer) {
+	op.SetTableName(string(tbl))
+	return b, op, &table2Entity{ID: id}
+}
+
+func (tbl table2) Put1(e *table2Entity) (b e.Builder, op dynamodb.Put, it Itemizer) {
+	op.SetTableName(string(tbl))
+	return b, op, e
+}
+
+type table2Item struct {
+	PK   string `dynamodbav:"pk"`
+	SK   string `dynamodbav:"sk"`
+	Kind int64  `dynamodbav:"kind"`
+}
+
+func (table2Item) Keys() (pk, sk string) {
+	return "pk", "sk"
+}
+
+type table2Entity struct {
+	ID   int
+	Kind int
+}
+
+func (e *table2Entity) FromItem(it Item) {
+	e.ID, _ = strconv.Atoi(it.(*table2Item).PK)
+}
+
+func (e table2Entity) Item() Item {
+	return &table2Item{
+		PK:   strconv.Itoa(e.ID),
+		SK:   strconv.Itoa(e.ID),
+		Kind: int64(e.Kind),
+	}
+}
+
+func TestTable2End2End(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	tbl := table2(t.Name())
+	ddb := withLocalDB(t, tbl.createInput())
+
+	t.Run("put tx", func(t *testing.T) {
+		w := NewWrite()
+		for i := 0; i < 8; i++ {
+			e := &table2Entity{i, 0}
+			if i > 4 {
+				e.Kind = 1
+			}
+
+			w.Put(tbl.Put1(e))
+		}
+
+		if _, err := w.Run(ctx, ddb); err != nil {
+			t.Fatalf("got: %v", err)
+		}
+
+		t.Run("get tx", func(t *testing.T) {
+			rd := NewRead()
+			for i := 0; i < 4; i++ {
+				rd.Get(tbl.Get1(i))
+			}
+
+			r, err := rd.Run(ctx, ddb)
+			if err != nil {
+				t.Fatalf("got: %v", err)
+			}
+
+			var ids []string
+			for r.Next() {
+				var e table2Entity
+				if err := r.Scan(&e); err != nil {
+					t.Fatalf("got: %v", err)
+				}
+
+				ids = append(ids, strconv.Itoa(e.ID))
+			}
+
+			if r.Err() != nil {
+				t.Fatalf("got: %v", err)
+			}
+
+			if act := strings.Join(ids, ","); act != "0,1,2,3" {
+				t.Fatalf("got: %v", act)
+			}
+		})
+
+		t.Run("query by kind", func(t *testing.T) {
+			r, err := Query(tbl.ByKind(1)).Run(ctx, ddb)
+			if err != nil {
+				t.Fatalf("got: %v", err)
+			}
+
+			var ids []string
+			for r.Next() {
+				var e table2Entity
+				if err := r.Scan(&e); err != nil {
+					t.Fatalf("got: %v", err)
+				}
+
+				ids = append(ids, strconv.Itoa(e.ID))
+			}
+
+			if act := strings.Join(ids, ","); act != "5,7,6" {
+				t.Fatalf("got: %v", act)
+			}
+
+			if err = r.Err(); err != nil {
+				t.Fatalf("got: %v", err)
+			}
+		})
+
 	})
 }
