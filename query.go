@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-// Query holds a dynamodb query
+// Query holds a DynamoDB query
 type Query struct {
 	res *queryResult
 	eb  expression.Builder
@@ -24,7 +24,7 @@ func NewQuery(in dynamodb.QueryInput, b expression.Builder) (q *Query) {
 	return
 }
 
-// Run the query and return the result for iterating
+// Run will return a Query result for iteration
 func (q *Query) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	expr, err := q.eb.Build()
 	if err != nil {

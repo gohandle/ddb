@@ -20,8 +20,6 @@ type Op struct {
 
 	writes []*dynamodb.TransactWriteItem
 	reads  []*dynamodb.TransactGetItem
-	query  *dynamodb.QueryInput
-	scan   *dynamodb.ScanInput
 }
 
 // Exec starts a new DynamoDB operation
@@ -92,19 +90,7 @@ func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Itemizer) *Op {
 		ot.ProjectionExpression = expr.Projection()
 		ot.ExpressionAttributeNames = expr.Names()
 		op.reads = append(op.reads, &dynamodb.TransactGetItem{Get: &ot})
-	case dynamodb.QueryInput:
-		ot.FilterExpression = expr.Filter()
-		ot.KeyConditionExpression = expr.KeyCondition()
-		ot.ProjectionExpression = expr.Projection()
-		ot.ExpressionAttributeNames = expr.Names()
-		ot.ExpressionAttributeValues = expr.Values()
-		op.query = &ot
-	case dynamodb.ScanInput:
-		ot.FilterExpression = expr.Filter()
-		ot.ProjectionExpression = expr.Projection()
-		ot.ExpressionAttributeNames = expr.Names()
-		ot.ExpressionAttributeValues = expr.Values()
-		op.scan = &ot
+
 	default:
 		op.err = fmt.Errorf("unsupported sub-operation for 'Do': %T", op)
 	}
@@ -115,12 +101,8 @@ func (op *Op) Do(eb expression.Builder, o interface{}, ik ...Itemizer) *Op {
 // Run the DynamoDB operation
 func (op *Op) Run() (r Result, err error) {
 	switch {
-	case op.query != nil: // perform a query
-		return &queryResult{in: op.query}, nil
 	case len(op.writes) == 1: // perform a singleton write
 		return op.singleWrite(op.writes[0])
-	case op.scan != nil: // perform a scan
-		fallthrough
 	case len(op.reads) == 1: // perform a singleton get
 		fallthrough
 	case len(op.writes) > 1: // perform a write transaction

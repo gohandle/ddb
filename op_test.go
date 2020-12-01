@@ -53,16 +53,12 @@ func TestOpDo(t *testing.T) {
 		expErr    error
 		expWrites bool
 		expReads  bool
-		expQuery  bool
-		expScan   bool
 	}{
 		{eb: e.NewBuilder(), sop: dynamodb.Delete{}, expWrites: true},
 		{eb: e.NewBuilder(), sop: dynamodb.Get{}, expReads: true},
 		{eb: e.NewBuilder(), sop: dynamodb.Put{}, expWrites: true},
 		{eb: e.NewBuilder(), sop: dynamodb.Update{}, expWrites: true},
 		{eb: e.NewBuilder(), sop: dynamodb.ConditionCheck{}, expWrites: true},
-		{eb: e.NewBuilder(), sop: dynamodb.QueryInput{}, expQuery: true},
-		{eb: e.NewBuilder(), sop: dynamodb.ScanInput{}, expScan: true},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			op := Exec(nil, nil).Do(c.eb, c.sop, c.ik...)
@@ -75,10 +71,6 @@ func TestOpDo(t *testing.T) {
 				t.Fatalf("exp write got: %v", op.writes)
 			case c.expReads && len(op.reads) != 1:
 				t.Fatalf("exp read got: %v", op.writes)
-			case c.expQuery && op.query == nil:
-				t.Fatalf("exp query got: %v", op.query)
-			case c.expScan && op.scan == nil:
-				t.Fatalf("exp scan got: %v", op.scan)
 			}
 		})
 	}
@@ -133,7 +125,6 @@ func withLocalDB(tb testing.TB, tbls ...*dynamodb.CreateTableInput) (ddb *dynamo
 		if _, err = ddb.CreateTable(in); err != nil {
 			tb.Fatalf("failed to create table %v: %v", in, err)
 		}
-
 	}
 
 	return

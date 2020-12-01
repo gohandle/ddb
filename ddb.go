@@ -11,3 +11,12 @@ type Itemizer interface {
 type Deitemizer interface {
 	FromItem(Item)
 }
+
+type Result interface {
+	Err() error
+	Next() bool
+	Scan(v interface {
+		Itemizer
+		Deitemizer
+	}) error
+}
