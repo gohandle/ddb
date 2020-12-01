@@ -13,6 +13,7 @@ Helper types for writing expression DynamoDB code
 - [ ] COULD create error types that show the dynamodb input for debugging
 - [ ] COULD  be nice to have an helper that decodes the whole result into a slice of entities
 - [ ] COULD  be nice to have an helper that decodes the result with the expectation there is only one item
+- [ ] COULD  share more code between QueryResult and ScanResult
 
 ## notes
 - A Query, Scan, Put, Get, Delete, Update and ConditionCheck only variables in an operations are:

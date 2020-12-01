@@ -2,9 +2,7 @@ package ddb
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -129,18 +127,6 @@ func (tx *Writer) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	return emptyResult{}, nil
 }
 
-// emptyResult is a result without items
-type emptyResult struct{}
-
-func (c emptyResult) Err() error { return nil }
-func (c emptyResult) Next() bool { return false }
-func (c emptyResult) Scan(v interface {
-	Itemizer
-	Deitemizer
-}) (err error) {
-	return
-}
-
 // prepArgs will do checks for what is provided for a write operation
 func (tx *Writer) prepArgs(
 	eb expression.Builder,
@@ -173,39 +159,4 @@ func (tx *Writer) prepArgs(
 	}
 
 	return expr, av, ik, true
-}
-
-// exprBuild builds the expression but ignores empty Builder error
-func exprBuild(eb expression.Builder) (expr expression.Expression, err error) {
-	expr, err = eb.Build()
-	var uperr expression.UnsetParameterError
-	if errors.As(err, &uperr) && strings.Contains(uperr.Error(), "Builder") {
-		// a zero builder as an argument is fine, so we don't report this
-		// error to the user.
-	} else if err != nil {
-		return expr, fmt.Errorf("failed to build expression: %T", err)
-	}
-
-	return expr, nil
-}
-
-// mapFilter is a utility method that returns a copy 'n' of 'm' that just holds
-// the provided named element.
-func mapFilter(
-	m map[string]*dynamodb.AttributeValue,
-	names ...string,
-) (n map[string]*dynamodb.AttributeValue) {
-	n = make(map[string]*dynamodb.AttributeValue)
-	for _, name := range names {
-		if name == "" {
-			continue
-		}
-
-		if _, ok := m[name]; !ok {
-			continue
-		}
-
-		n[name] = m[name]
-	}
-	return
 }

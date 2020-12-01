@@ -40,7 +40,7 @@ func (q *Scanner) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	return q.res, nil
 }
 
-// scanResult is a result that is returned when a query operation
+// scanResult is a result that is returned when a scan operation
 // is run. It will automatically get more pages as the user scans
 // through the results.
 type scanResult struct {

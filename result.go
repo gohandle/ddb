@@ -39,3 +39,15 @@ func (c *result) Scan(v interface {
 	v.FromItem(it)
 	return
 }
+
+// emptyResult is a result without items
+type emptyResult struct{}
+
+func (c emptyResult) Err() error { return nil }
+func (c emptyResult) Next() bool { return false }
+func (c emptyResult) Scan(v interface {
+	Itemizer
+	Deitemizer
+}) (err error) {
+	return
+}
