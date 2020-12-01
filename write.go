@@ -11,39 +11,39 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-// Write represents a dynamodb write
-type Write struct {
+// Writer represents one or more DynamoDB write operations
+type Writer struct {
 	writes []*dynamodb.TransactWriteItem
 	err    error
 }
 
-// NewWrite inits a new write
-func NewWrite() *Write {
-	return &Write{}
+// NewWriter inits a new write
+func NewWriter() *Writer {
+	return &Writer{}
 }
 
 // Put will setup a put with the check
-func Put(eb expression.Builder, o dynamodb.Put, item Itemizer) *Write {
-	return NewWrite().Put(eb, o, item)
+func Put(eb expression.Builder, o dynamodb.Put, item Itemizer) *Writer {
+	return NewWriter().Put(eb, o, item)
 }
 
 // Delete will setup a write with the delete
-func Delete(eb expression.Builder, o dynamodb.Delete, key Itemizer) *Write {
-	return NewWrite().Delete(eb, o, key)
+func Delete(eb expression.Builder, o dynamodb.Delete, key Itemizer) *Writer {
+	return NewWriter().Delete(eb, o, key)
 }
 
 // Update will setup a write with the update
-func Update(eb expression.Builder, o dynamodb.Update, key Itemizer) *Write {
-	return NewWrite().Update(eb, o, key)
+func Update(eb expression.Builder, o dynamodb.Update, key Itemizer) *Writer {
+	return NewWriter().Update(eb, o, key)
 }
 
 // Check will setup a write with the check
-func Check(eb expression.Builder, o dynamodb.ConditionCheck, key Itemizer) *Write {
-	return NewWrite().Check(eb, o, key)
+func Check(eb expression.Builder, o dynamodb.ConditionCheck, key Itemizer) *Writer {
+	return NewWriter().Check(eb, o, key)
 }
 
 // Put will add a put operation to the write
-func (tx *Write) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Write {
+func (tx *Writer) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Writer {
 	expr, ok := expression.Expression{}, false
 	if expr, put.Item, _, ok = tx.prepArgs(eb, item); !ok {
 		return tx
@@ -57,7 +57,7 @@ func (tx *Write) Put(eb expression.Builder, put dynamodb.Put, item Itemizer) *Wr
 }
 
 // Update will add a update operation to the write
-func (tx *Write) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer) *Write {
+func (tx *Writer) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer) *Writer {
 	var k Item
 	expr, ok := expression.Expression{}, false
 	if expr, upd.Key, k, ok = tx.prepArgs(eb, key); !ok {
@@ -75,7 +75,7 @@ func (tx *Write) Update(eb expression.Builder, upd dynamodb.Update, key Itemizer
 }
 
 // Update delete will add a Delete operation to the write
-func (tx *Write) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer) *Write {
+func (tx *Writer) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer) *Writer {
 	var k Item
 	expr, ok := expression.Expression{}, false
 	if expr, del.Key, k, ok = tx.prepArgs(eb, key); !ok {
@@ -92,7 +92,7 @@ func (tx *Write) Delete(eb expression.Builder, del dynamodb.Delete, key Itemizer
 }
 
 // Check will add a check operation to the write
-func (tx *Write) Check(eb expression.Builder, chk dynamodb.ConditionCheck, key Itemizer) *Write {
+func (tx *Writer) Check(eb expression.Builder, chk dynamodb.ConditionCheck, key Itemizer) *Writer {
 	var k Item
 	expr, ok := expression.Expression{}, false
 	if expr, chk.Key, k, ok = tx.prepArgs(eb, key); !ok {
@@ -109,7 +109,7 @@ func (tx *Write) Check(eb expression.Builder, chk dynamodb.ConditionCheck, key I
 }
 
 // Run the write
-func (tx *Write) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
+func (tx *Writer) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	if tx.err != nil {
 		return nil, tx.err
 	}
@@ -142,7 +142,7 @@ func (c emptyResult) Scan(v interface {
 }
 
 // prepArgs will do checks for what is provided for a write operation
-func (tx *Write) prepArgs(
+func (tx *Writer) prepArgs(
 	eb expression.Builder,
 	ikz Itemizer,
 ) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ik Item, ok bool) {

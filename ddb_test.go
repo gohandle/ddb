@@ -356,7 +356,7 @@ func TestTable2End2End(t *testing.T) {
 	ddb := withLocalDB(t, tbl.createInput())
 
 	t.Run("put tx", func(t *testing.T) {
-		w := NewWrite()
+		w := NewWriter()
 		for i := 0; i < 8; i++ {
 			e := &table2Entity{i, 0}
 			if i > 4 {
@@ -371,7 +371,7 @@ func TestTable2End2End(t *testing.T) {
 		}
 
 		t.Run("get tx", func(t *testing.T) {
-			rd := NewRead()
+			rd := NewReader()
 			for i := 0; i < 4; i++ {
 				rd.Get(tbl.Get1(i))
 			}

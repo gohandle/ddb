@@ -9,22 +9,22 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-// Read represents one or more read to dynamodb
-type Read struct {
+// Reader represents one or more read to dynamodb
+type Reader struct {
 	reads []*dynamodb.TransactGetItem
 	err   error
 }
 
-// NewRead inits an empty read
-func NewRead() *Read { return &Read{} }
+// NewReader inits an empty read
+func NewReader() *Reader { return &Reader{} }
 
 // Get starts a read and adds one get operation
-func Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read {
-	return NewRead().Get(eb, get, key)
+func Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Reader {
+	return NewReader().Get(eb, get, key)
 }
 
 // Get adds a get item to the read
-func (r *Read) Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read {
+func (r *Reader) Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Reader {
 	var k Item
 	expr, ok := expression.Expression{}, false
 	if expr, get.Key, k, ok = r.prepArgs(eb, key); !ok {
@@ -40,7 +40,7 @@ func (r *Read) Get(eb expression.Builder, get dynamodb.Get, key Itemizer) *Read 
 }
 
 // Run the read and return results
-func (r *Read) Run(ctx context.Context, ddb Dynamo) (res Result, err error) {
+func (r *Reader) Run(ctx context.Context, ddb Dynamo) (res Result, err error) {
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -69,7 +69,7 @@ func (r *Read) Run(ctx context.Context, ddb Dynamo) (res Result, err error) {
 }
 
 // prepArgs will do checks for what is provided for a write operation
-func (r *Read) prepArgs(
+func (r *Reader) prepArgs(
 	eb expression.Builder,
 	ikz Itemizer,
 ) (expr expression.Expression, av map[string]*dynamodb.AttributeValue, ik Item, ok bool) {
