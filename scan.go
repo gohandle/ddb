@@ -37,7 +37,7 @@ func (q *Scanner) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	q.res.in.ProjectionExpression = expr.Projection()
 	q.res.in.ExpressionAttributeNames = expr.Names()
 	q.res.in.ExpressionAttributeValues = expr.Values()
-	return q.res, nil
+	return q.res, q.res.init()
 }
 
 // scanResult is a result that is returned when a scan operation
@@ -47,16 +47,23 @@ type scanResult struct {
 	ctx context.Context
 	in  *dynamodb.ScanInput
 	out *dynamodb.ScanOutput
+	tot int64
 	ddb Dynamo
 	err error
 	pos int
 }
 
-func (c *scanResult) Len() int64 {
-	if c.out == nil || c.out.Count == nil {
-		return -1
+func (c *scanResult) init() (err error) {
+	if c.out, err = c.ddb.ScanWithContext(c.ctx, c.in); err != nil {
+		return err
 	}
-	return *c.out.Count
+
+	c.tot = *c.out.Count
+	return nil
+}
+
+func (c *scanResult) Len() int64 {
+	return c.tot
 }
 
 func (c *scanResult) Err() error {
@@ -80,11 +87,12 @@ func (c *scanResult) Next() bool {
 		}
 	}
 
-	// no out, must be the first time it is queried
+	// no out, run again
 	if c.out == nil {
 		if c.out, c.err = c.ddb.ScanWithContext(c.ctx, c.in); c.err != nil {
 			return false
 		}
+		c.tot += *c.out.Count
 	}
 
 	return true

@@ -178,6 +178,10 @@ func TestTable1End2End(t *testing.T) {
 						t.Fatalf("got: %v", err)
 					}
 
+					if act := r.Len(); act != 1 {
+						t.Fatalf("got: %v", act)
+					}
+
 					for r.Next() {
 						var e table1Entity
 						if err := r.Scan(&e); err != nil {
@@ -222,6 +226,12 @@ func TestTable1End2End(t *testing.T) {
 						t.Fatalf("got: %v", err)
 					}
 
+					// before iteration is complete it can only know about
+					// the length of a page
+					if act := r.Len(); act != 2 {
+						t.Fatalf("got: %v", act)
+					}
+
 					var names []string
 					for r.Next() {
 						var e table1Entity
@@ -229,6 +239,10 @@ func TestTable1End2End(t *testing.T) {
 							t.Fatalf("got: %v", err)
 						}
 						names = append(names, e.Name)
+					}
+
+					if act := r.Len(); act != 5 {
+						t.Fatalf("got: %v", act)
 					}
 
 					if err = r.Err(); err != nil {
@@ -381,6 +395,10 @@ func TestTable2End2End(t *testing.T) {
 				t.Fatalf("got: %v", err)
 			}
 
+			if act := r.Len(); act != 4 {
+				t.Fatalf("got: %v", act)
+			}
+
 			var ids []string
 			for r.Next() {
 				var e table2Entity
@@ -416,6 +434,10 @@ func TestTable2End2End(t *testing.T) {
 				t.Fatalf("got: %v", err)
 			}
 
+			if act := r.Len(); act != 2 {
+				t.Fatalf("got: %v", act)
+			}
+
 			var ids []string
 			for r.Next() {
 				var e table2Entity
@@ -424,6 +446,10 @@ func TestTable2End2End(t *testing.T) {
 				}
 
 				ids = append(ids, strconv.Itoa(e.ID))
+			}
+
+			if act := r.Len(); act != 3 {
+				t.Fatalf("got: %v", act)
 			}
 
 			if act := strings.Join(ids, ","); act != "5,7,6" {

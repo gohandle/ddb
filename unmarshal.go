@@ -5,7 +5,6 @@ package ddb
 func UnmarshalAll(r Result, v interface{}) (err error) {
 
 	for r.Next() {
-
 		if err = r.Scan(nil); err != nil {
 			return
 		}

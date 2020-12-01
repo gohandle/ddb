@@ -37,7 +37,7 @@ func (q *Querier) Run(ctx context.Context, ddb Dynamo) (r Result, err error) {
 	q.res.in.ProjectionExpression = expr.Projection()
 	q.res.in.ExpressionAttributeNames = expr.Names()
 	q.res.in.ExpressionAttributeValues = expr.Values()
-	return q.res, nil
+	return q.res, q.res.init()
 }
 
 // queryResult is a result that is returned when a query operation
@@ -48,8 +48,18 @@ type queryResult struct {
 	in  *dynamodb.QueryInput
 	out *dynamodb.QueryOutput
 	ddb Dynamo
+	tot int64
 	err error
 	pos int
+}
+
+func (c *queryResult) init() (err error) {
+	if c.out, err = c.ddb.QueryWithContext(c.ctx, c.in); err != nil {
+		return err
+	}
+
+	c.tot = *c.out.Count
+	return
 }
 
 func (c *queryResult) Err() error {
@@ -57,10 +67,7 @@ func (c *queryResult) Err() error {
 }
 
 func (c *queryResult) Len() int64 {
-	if c.out == nil || c.out.Count == nil {
-		return -1
-	}
-	return *c.out.Count
+	return c.tot
 }
 
 func (c *queryResult) Next() bool {
@@ -85,6 +92,8 @@ func (c *queryResult) Next() bool {
 		if c.out, c.err = c.ddb.QueryWithContext(c.ctx, c.in); c.err != nil {
 			return false
 		}
+
+		c.tot += *c.out.Count
 	}
 
 	return true
