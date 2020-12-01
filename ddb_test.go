@@ -253,6 +253,27 @@ func TestTable1End2End(t *testing.T) {
 						t.Fatalf("got: %v", act)
 					}
 				})
+
+				t.Run("scan with marshal all", func(t *testing.T) {
+					r, err := Scan(tbl.simpleScan()).Run(ctx, ddb)
+					if err != nil {
+						t.Fatalf("got: %v", err)
+					}
+
+					var ets []*table1Entity
+					if err = UnmarshalAll(r, &ets); err != nil {
+						t.Fatalf("got: %v", err)
+					}
+
+					var names []string
+					for _, et := range ets {
+						names = append(names, et.Name)
+					}
+
+					if act := strings.Join(names, ","); act != "name-9,name-7,name-5,name-8,foo" {
+						t.Fatalf("got: %v", act)
+					}
+				})
 			})
 		})
 	})
