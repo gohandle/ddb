@@ -69,6 +69,7 @@ type Table1Item struct{
   PK string `dynamodbav:"pk"`
 }
 
+// Keys indicates which attributes of this item represent the partition and sort key
 func (Table1Item) Keys() (pk, sk string) { return "pk", ""}
 
 // The "Foo" entity is stored in table 1, it just has an identifier.
@@ -76,8 +77,8 @@ type Foo struct{
   ID   int
 }
 
-// We map the Foo entity onto the FooItem. With the partion key set to the identifier. This is done
-// for operations that store entities into the table: Put
+// We map the Foo entity onto the FooItem. With the partion key set to the 
+// identifier. This is done for operations that store entities into the table: Put
 func (e Foo) Item() ddb.Item { 
   return Table1Item{PK: strconv.Itoa(e.ID)}
 }
