@@ -1,7 +1,9 @@
 package ddb
 
 import (
+	"bytes"
 	"context"
+	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -149,14 +151,19 @@ func TestTable1End2End(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
+	buf := bytes.NewBuffer(nil)
 	tbl := table1(t.Name())
-	ddb := withLocalDB(t, tbl.createInput())
+	ddb := LoggedDynamo(withLocalDB(t, tbl.createInput()), log.New(buf, "", 0))
 
 	t.Run("put 10", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			e := &table1Entity{i, "name-" + strconv.Itoa(i)}
 			if _, err := Put(tbl.simplePut1(e)).Run(ctx, ddb); err != nil {
 				t.Fatalf("got: %v", err)
+			}
+
+			if !strings.Contains(buf.String(), "dynamodb.PutItemInput") {
+				t.Fatalf("got: %v", buf.String())
 			}
 		}
 
