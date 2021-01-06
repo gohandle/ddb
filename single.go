@@ -35,7 +35,7 @@ func writeSingle(ctx context.Context, ddb Dynamo, wi *dynamodb.TransactWriteItem
 			ExpressionAttributeNames:  wi.Delete.ExpressionAttributeNames,
 			ExpressionAttributeValues: wi.Delete.ExpressionAttributeValues,
 		}); err != nil {
-			return nil, fmt.Errorf("failed to put item: %w", err)
+			return nil, fmt.Errorf("failed to delete item: %w", err)
 		}
 
 		attr = out.Attributes
@@ -49,7 +49,7 @@ func writeSingle(ctx context.Context, ddb Dynamo, wi *dynamodb.TransactWriteItem
 			ExpressionAttributeNames:  wi.Update.ExpressionAttributeNames,
 			ExpressionAttributeValues: wi.Update.ExpressionAttributeValues,
 		}); err != nil {
-			return nil, fmt.Errorf("failed to put item: %w", err)
+			return nil, fmt.Errorf("failed to update item: %w", err)
 		}
 
 		attr = out.Attributes
