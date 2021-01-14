@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
@@ -152,7 +151,7 @@ func (tx *Writer) prepArgs(
 		return
 	}
 
-	av, err = dynamodbattribute.MarshalMap(ik)
+	av, err = MarshalMap(ik, true)
 	if err != nil {
 		tx.err = fmt.Errorf("failed to marshal item: %w", err)
 		return
