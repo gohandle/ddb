@@ -12,31 +12,34 @@ import (
 type Writer struct {
 	writes []*dynamodb.TransactWriteItem
 	err    error
+	opts   Options
 }
 
 // NewWriter inits a new write
-func NewWriter() *Writer {
-	return &Writer{}
+func NewWriter(opts ...Option) (w *Writer) {
+	w = &Writer{}
+	w.opts.Apply(opts...)
+	return w
 }
 
 // Put will setup a put with the check
 func Put(eb expression.Builder, o dynamodb.Put, item Itemizer) *Writer {
-	return NewWriter().Put(eb, o, item)
+	return NewWriter(DefaultOptions...).Put(eb, o, item)
 }
 
 // Delete will setup a write with the delete
 func Delete(eb expression.Builder, o dynamodb.Delete, key Itemizer) *Writer {
-	return NewWriter().Delete(eb, o, key)
+	return NewWriter(DefaultOptions...).Delete(eb, o, key)
 }
 
 // Update will setup a write with the update
 func Update(eb expression.Builder, o dynamodb.Update, key Itemizer) *Writer {
-	return NewWriter().Update(eb, o, key)
+	return NewWriter(DefaultOptions...).Update(eb, o, key)
 }
 
 // Check will setup a write with the check
 func Check(eb expression.Builder, o dynamodb.ConditionCheck, key Itemizer) *Writer {
-	return NewWriter().Check(eb, o, key)
+	return NewWriter(DefaultOptions...).Check(eb, o, key)
 }
 
 // Put will add a put operation to the write
@@ -151,7 +154,7 @@ func (tx *Writer) prepArgs(
 		return
 	}
 
-	av, err = MarshalMap(ik, true)
+	av, err = MarshalMap(ik, tx.opts.enableEmptyCollections)
 	if err != nil {
 		tx.err = fmt.Errorf("failed to marshal item: %w", err)
 		return
