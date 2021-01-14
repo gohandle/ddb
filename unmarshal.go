@@ -3,7 +3,23 @@ package ddb
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
+
+// Copied from aws-sdk-go, because Encoder{} does not have EncodeMap()
+func MarshalMap(in interface{}, enableEmptyCollections bool) (map[string]*dynamodb.AttributeValue, error) {
+	encoder := dynamodbattribute.NewEncoder(func(e *dynamodbattribute.Encoder) {
+		e.EnableEmptyCollections = enableEmptyCollections
+	})
+	av, err := encoder.Encode(in)
+	if err != nil || av == nil || av.M == nil {
+		return map[string]*dynamodb.AttributeValue{}, err
+	}
+
+	return av.M, nil
+}
 
 // UnmarshalAll will run through all results in 'r' and unmarshal all items into 'v'. It will
 // consume the result in the process and it cannot scanned again afterwards. Each element of
