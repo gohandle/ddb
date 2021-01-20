@@ -98,9 +98,10 @@ type table1Entity struct {
 	Name string
 }
 
-func (e *table1Entity) FromItem(it Item) {
+func (e *table1Entity) FromItem(it Item) error {
 	e.ID, _ = strconv.Atoi(it.(*table1Item).PK[1:])
 	e.Name = it.(*table1Item).F1
+	return nil
 }
 
 func (e table1Entity) Item() Item {
@@ -378,8 +379,9 @@ type table2Entity struct {
 	Kind int
 }
 
-func (e *table2Entity) FromItem(it Item) {
+func (e *table2Entity) FromItem(it Item) error {
 	e.ID, _ = strconv.Atoi(it.(*table2Item).PK)
+	return nil
 }
 
 func (e table2Entity) Item() Item {

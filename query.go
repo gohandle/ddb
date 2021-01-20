@@ -108,6 +108,9 @@ func (c *queryResult) Scan(v interface {
 		return
 	}
 
-	v.FromItem(it)
+	if err = v.FromItem(it); err != nil {
+		return
+	}
+
 	return
 }

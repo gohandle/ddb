@@ -18,7 +18,7 @@ type Itemizer interface {
 }
 
 type Deitemizer interface {
-	FromItem(Item)
+	FromItem(Item) error
 }
 
 type Result interface {

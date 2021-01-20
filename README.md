@@ -85,8 +85,9 @@ func (e Foo) Item() ddb.Item {
 
 // FromItem unmaps the item back into an entity. This is used for operations that read from the
 // database: Query, Get etc
-func (e *Foo) FromItem(it ddb.Item) {
+func (e *Foo) FromItem(it ddb.Item) error {
   e.ID, _ = strconv.Atoi(it.(*Table1Item).PK)
+  return nil
 }
 
 // PutFoo implements the access pattern for storing new foo entities.
